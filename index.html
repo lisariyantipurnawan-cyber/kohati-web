@@ -14,86 +14,6 @@
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
-    <!-- Firebase SDK -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
-        import { getFirestore, doc, setDoc, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyCNDGxQ_Y6cvTxyB_evI3Kz6xhdI_NUSzE",
-            authDomain: "sit-kohati.firebaseapp.com",
-            projectId: "sit-kohati",
-            storageBucket: "sit-kohati.firebasestorage.app",
-            messagingSenderId: "132715963039",
-            appId: "1:132715963039:web:5b35ea04cae58f98c8f8aa",
-            measurementId: "G-N1GJL87L23"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        window.db = db;
-        window.auth = auth;
-
-        onAuthStateChanged(auth, (user) => {
-            window.isLoggedIn = !!user;
-            window.currentUser = user;
-            updateAuthUI();
-            router(window.currentViewName || 'home');
-        });
-
-        window.handleRegister = async (e) => {
-            e.preventDefault();
-            const name = document.getElementById('regName').value;
-            const email = document.getElementById('regEmail').value;
-            const pass = document.getElementById('regPass').value;
-            const branch = document.getElementById('regBranch').value;
-
-            try {
-                const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
-                const user = userCredential.user;
-                await setDoc(doc(db, "users", user.uid), {
-                    fullName: name,
-                    email: email,
-                    branch: branch,
-                    role: 'kader',
-                    createdAt: new Date().toISOString()
-                });
-                alert("Registrasi Berhasil! Selamat datang, Yunda.");
-                toggleModal('registerModal');
-            } catch (error) {
-                alert("Gagal Registrasi: " + error.message);
-            }
-        };
-
-        window.handleLogin = async (e) => {
-            e.preventDefault();
-            try {
-                await signInWithEmailAndPassword(auth, document.getElementById('loginId').value, document.getElementById('loginPass').value);
-                toggleModal('loginModal');
-            } catch (error) { alert("Gagal masuk: " + error.message); }
-        };
-
-        window.handleLogout = () => signOut(auth);
-
-        window.state = {
-    news: [],
-    searchQuery: '',
-    savedNews: JSON.parse(localStorage.getItem('savedNews') || '[]')
-};
-
-// Fungsi Maintenance: Menarik data berita secara Real-time dari Cloud Firestore
-function syncNewsData() {
-    const q = query(collection(db, "news"), orderBy("date", "desc"));
-    onSnapshot(q, (snapshot) => {
-        window.state.news = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        // Memicu render ulang jika sedang di halaman berita
-        if (window.currentViewName === 'news') router('news');
-    });
-}
-    </script>
-
     <script>
         tailwind.config = {
             theme: {
@@ -115,9 +35,10 @@ function syncNewsData() {
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans">
 
+    <!-- NAVBAR -->
     <nav class="bg-white shadow-md fixed w-full z-50">
         <div class="max-w-7xl mx-auto px-4 h-20 flex justify-between items-center">
-            <div class="flex items-center gap-3 cursor-pointer" onclick="router('home')">
+            <div class="flex items-center gap-3 cursor-pointer" id="nav-logo">
                 <div class="w-10 h-10 bg-kohati-green rounded-full flex items-center justify-center text-white font-bold text-xl font-serif">K</div>
                 <div>
                     <h1 class="text-xl font-bold text-kohati-green font-serif tracking-wide">KOHATI</h1>
@@ -125,107 +46,109 @@ function syncNewsData() {
                 </div>
             </div>
             <div class="hidden md:flex items-center space-x-8">
-                <button onclick="router('home')" class="hover:text-kohati-green font-medium transition">Beranda</button>
-                <button onclick="router('about')" class="hover:text-kohati-green font-medium transition">Tentang Kami</button>
-                <button onclick="router('news')" class="hover:text-kohati-green font-medium transition">Kabar Kohati</button>
-                <button onclick="router('literacy')" class="hover:text-kohati-green font-medium transition">Ruang Literasi</button>
-                <button onclick="router('archive')" class="hover:text-kohati-green font-medium transition">Bank Data</button>
+                <button onclick="AppController.navigate('home')" class="hover:text-kohati-green font-medium transition">Beranda</button>
+                <button onclick="AppController.navigate('about')" class="hover:text-kohati-green font-medium transition">Tentang Kami</button>
+                <button onclick="AppController.navigate('news')" class="hover:text-kohati-green font-medium transition">Kabar Kohati</button>
+                <button onclick="AppController.navigate('literacy')" class="hover:text-kohati-green font-medium transition">Ruang Literasi</button>
+                <button onclick="AppController.navigate('archive')" class="hover:text-kohati-green font-medium transition">Bank Data</button>
                 <div id="authButtonDesktop"></div>
             </div>
         </div>
     </nav>
 
+    <!-- MAIN CONTENT -->
     <main id="mainContent" class="pt-20 min-h-screen"></main>
 
+    <!-- FOOTER -->
     <footer class="bg-gray-900 text-white py-12">
         <div class="max-w-7xl mx-auto px-4 text-center">
             <p class="text-gray-400 text-sm">&copy; 2024 KOHATI System | Terhubung dengan Firebase Cloud.</p>
         </div>
     </footer>
 
-    <!-- Modals -->
-    <div id="loginModal" class="fixed inset-0 bg-black/50 hidden z-[60] flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-md w-full overflow-hidden relative shadow-2xl">
-            <div class="bg-kohati-green p-6 text-center text-white font-serif font-bold text-xl">Portal Kader</div>
-            <div class="p-8">
-                <form onsubmit="handleLogin(event)">
-                    <input type="email" id="loginId" class="w-full mb-4 px-4 py-3 border rounded-lg" placeholder="Email" required>
-                    <input type="password" id="loginPass" class="w-full mb-6 px-4 py-3 border rounded-lg" placeholder="Password" required>
-                    <button type="submit" class="w-full bg-kohati-green text-white py-3 rounded-lg font-bold">Masuk</button>
-                </form>
-                <p class="mt-4 text-center text-sm text-gray-500">Belum punya akun? <button onclick="toggleModal('loginModal'); toggleModal('registerModal')" class="text-kohati-green font-bold">Daftar</button></p>
-            </div>
-            <button onclick="toggleModal('loginModal')" class="absolute top-4 right-4 text-white"><i data-lucide="x"></i></button>
-        </div>
-    </div>
+    <!-- MODALS CONTAINER -->
+    <div id="modal-container"></div>
 
-    <div id="registerModal" class="fixed inset-0 bg-black/50 hidden z-[60] flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-md w-full overflow-hidden relative shadow-2xl">
-            <div class="bg-kohati-gold p-6 text-center text-kohati-dark font-serif font-bold text-xl">Registrasi Kader</div>
-            <div class="p-8">
-                <form onsubmit="handleRegister(event)">
-                    <input type="text" id="regName" class="w-full mb-4 px-4 py-3 border rounded-lg" placeholder="Nama Lengkap" required>
-                    <input type="email" id="regEmail" class="w-full mb-4 px-4 py-3 border rounded-lg" placeholder="Email" required>
-                    <input type="text" id="regBranch" class="w-full mb-4 px-4 py-3 border rounded-lg" placeholder="Asal Cabang" required>
-                    <input type="password" id="regPass" class="w-full mb-6 px-4 py-3 border rounded-lg" placeholder="Password (Min. 6)" required minlength="6">
-                    <button type="submit" class="w-full bg-kohati-dark text-white py-3 rounded-lg font-bold">Daftar Akun</button>
-                </form>
-                <p class="mt-4 text-center text-sm text-gray-500">Sudah punya akun? <button onclick="toggleModal('registerModal'); toggleModal('loginModal')" class="text-kohati-green font-bold">Login</button></p>
-            </div>
-            <button onclick="toggleModal('registerModal')" class="absolute top-4 right-4 text-kohati-dark"><i data-lucide="x"></i></button>
-        </div>
-    </div>
+    <!-- MVC LOGIC -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, addDoc, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
-    <script>
-        function toggleModal(id) { document.getElementById(id).classList.toggle('hidden'); }
-        
-        function updateAuthUI() {
-            const d = document.getElementById('authButtonDesktop');
-            d.innerHTML = window.isLoggedIn 
-                ? `<div class="flex items-center gap-4"><span class="text-sm font-bold text-kohati-green">Yunda Aktif</span><button onclick="handleLogout()" class="text-red-600 font-medium text-sm">Logout</button></div>`
-                : `<button onclick="toggleModal('loginModal')" class="bg-kohati-green text-white px-5 py-2 rounded-full shadow-md hover:bg-kohati-dark transition">Portal Kader</button>`;
-            lucide.createIcons();
-        }
-
-        function router(viewName) {
-            window.currentViewName = viewName;
-            const main = document.getElementById('mainContent');
+        // --- 1. MODEL ---
+        const AppModel = {
+            state: {
+                user: null,
+                isLoggedIn: false,
+                currentViewName: 'home',
+                usersList: [] // Menyimpan data kader untuk ditampilkan di Bank Data
+            },
             
-            const views = {
-                home: `
+            initFirebase() {
+                const firebaseConfig = {
+                    apiKey: "AIzaSyCNDGxQ_Y6cvTxyB_evI3Kz6xhdI_NUSzE",
+                    authDomain: "sit-kohati.firebaseapp.com",
+                    projectId: "sit-kohati",
+                    storageBucket: "sit-kohati.firebasestorage.app",
+                    messagingSenderId: "132715963039",
+                    appId: "1:132715963039:web:5b35ea04cae58f98c8f8aa",
+                    measurementId: "G-N1GJL87L23"
+                };
+                this.app = initializeApp(firebaseConfig);
+                this.auth = getAuth(this.app);
+                this.db = getFirestore(this.app);
+            },
+
+            // Fungsi untuk sinkronisasi data kader secara real-time
+            syncUsers(callback) {
+                const q = query(collection(this.db, "users"), orderBy("createdAt", "desc"));
+                return onSnapshot(q, (snapshot) => {
+                    this.state.usersList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    callback(this.state.usersList);
+                });
+            }
+        };
+
+        // --- 2. VIEW ---
+        const AppView = {
+            render(containerId, html) {
+                const container = document.getElementById(containerId);
+                if (container) {
+                    container.innerHTML = html;
+                    lucide.createIcons();
+                }
+            },
+
+            templates: {
+                authUI: (isLoggedIn) => isLoggedIn 
+                    ? `<div class="flex items-center gap-4"><span class="text-sm font-bold text-kohati-green">Yunda Aktif</span><button onclick="AppController.handleLogout()" class="text-red-600 font-medium text-sm">Logout</button></div>`
+                    : `<button onclick="AppController.toggleModal('loginModal')" class="bg-kohati-green text-white px-5 py-2 rounded-full shadow-md hover:bg-kohati-dark transition">Portal Kader</button>`,
+
+                home: () => `
                     <div class="hero-pattern py-24 text-center text-white px-4">
                         <h1 class="text-4xl md:text-6xl font-serif font-bold mb-4">Terbinanya Muslimah Berkualitas Insan Cita</h1>
                         <p class="max-w-xl mx-auto opacity-90 italic">"Bahagia HMI, Jayalah KOHATI"</p>
-                        <button onclick="router('literacy')" class="mt-8 bg-kohati-gold text-kohati-dark px-10 py-3 rounded-full font-bold shadow-lg hover:scale-105 transition">Baca Tulisan Kader</button>
+                        <button onclick="AppController.navigate('literacy')" class="mt-8 bg-kohati-gold text-kohati-dark px-10 py-3 rounded-full font-bold shadow-lg hover:scale-105 transition">Baca Tulisan Kader</button>
                     </div>
                     <div class="py-20 max-w-7xl mx-auto px-4 grid md:grid-cols-3 gap-8">
-                        <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl transition group">
-                            <div class="w-12 h-12 bg-kohati-light rounded-lg flex items-center justify-center text-kohati-green mb-6 group-hover:bg-kohati-green group-hover:text-white transition">
-                                <i data-lucide="book-open"></i>
-                            </div>
-                            <h3 class="font-bold text-xl mb-3">Ruang Literasi</h3>
-                            <p class="text-gray-500 mb-6 text-sm">Wadah karya tulis, opini, dan jurnal penelitian kader Kohati.</p>
-                            <button onclick="router('literacy')" class="text-kohati-green font-bold flex items-center gap-2 hover:translate-x-2 transition">Masuk Ruang &rarr;</button>
-                        </div>
-                        <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl transition group">
-                            <div class="w-12 h-12 bg-kohati-light rounded-lg flex items-center justify-center text-kohati-green mb-6 group-hover:bg-kohati-green group-hover:text-white transition">
-                                <i data-lucide="database"></i>
-                            </div>
-                            <h3 class="font-bold text-xl mb-3">Bank Data</h3>
-                            <p class="text-gray-500 mb-6 text-sm">Arsip digital PDK, Modul LKK, dan dokumen organisasi lainnya.</p>
-                            <button onclick="router('archive')" class="text-kohati-green font-bold flex items-center gap-2 hover:translate-x-2 transition">Buka Arsip &rarr;</button>
-                        </div>
-                        <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl transition group">
-                            <div class="w-12 h-12 bg-kohati-light rounded-lg flex items-center justify-center text-kohati-green mb-6 group-hover:bg-kohati-green group-hover:text-white transition">
-                                <i data-lucide="calendar"></i>
-                            </div>
-                            <h3 class="font-bold text-xl mb-3">Kabar Kohati</h3>
-                            <p class="text-gray-500 mb-6 text-sm">Berita terbaru agenda nasional dan daerah seluruh Indonesia.</p>
-                            <button onclick="router('news')" class="text-kohati-green font-bold flex items-center gap-2 hover:translate-x-2 transition">Lihat Berita &rarr;</button>
-                        </div>
+                        ${AppView.templates.featureCard('Ruang Literasi', 'book-open', 'Wadah karya tulis, opini, dan jurnal penelitian kader Kohati.', 'literacy')}
+                        ${AppView.templates.featureCard('Bank Data', 'database', 'Arsip digital PDK, Modul LKK, dan data kader organisasi.', 'archive')}
+                        ${AppView.templates.featureCard('Kabar Kohati', 'calendar', 'Berita terbaru agenda nasional dan daerah seluruh Indonesia.', 'news')}
                     </div>
                 `,
-                about: `
+
+                featureCard: (title, icon, desc, target) => `
+                    <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl transition group">
+                        <div class="w-12 h-12 bg-kohati-light rounded-lg flex items-center justify-center text-kohati-green mb-6 group-hover:bg-kohati-green group-hover:text-white transition">
+                            <i data-lucide="${icon}"></i>
+                        </div>
+                        <h3 class="font-bold text-xl mb-3">${title}</h3>
+                        <p class="text-gray-500 mb-6 text-sm">${desc}</p>
+                        <button onclick="AppController.navigate('${target}')" class="text-kohati-green font-bold flex items-center gap-2 hover:translate-x-2 transition">Masuk &rarr;</button>
+                    </div>
+                `,
+
+                about: () => `
                     <div class="bg-kohati-light py-16 text-center">
                         <h2 class="text-4xl font-serif font-bold text-kohati-dark mb-4">Tentang KOHATI</h2>
                         <p class="text-kohati-green font-medium uppercase text-sm tracking-widest">Korps HMI Wati</p>
@@ -234,64 +157,56 @@ function syncNewsData() {
                         <section class="grid md:grid-cols-2 gap-12 items-center">
                             <div>
                                 <h3 class="text-2xl font-serif font-bold mb-6 border-b-2 border-kohati-gold inline-block">Profil Organisasi</h3>
-                                <p class="text-gray-600 leading-relaxed mb-4">
-                                    Korps HMI Wati (KOHATI) adalah badan khusus HMI yang bertugas untuk membina, meningkatkan, dan mengembangkan potensi HMI-Wati dalam aspek kewanitaan.
-                                </p>
-                                <p class="text-gray-600 leading-relaxed">
-                                    Didirikan pada 17 September 1966 di Solo, KOHATI menjadi wadah perjuangan muslimah intelek dalam menjawab tantangan zaman.
-                                </p>
+                                <p class="text-gray-600 leading-relaxed mb-4">Korps HMI Wati (KOHATI) adalah badan khusus HMI yang bertugas untuk membina, meningkatkan, dan mengembangkan potensi HMI-Wati dalam aspek kewanitaan.</p>
                             </div>
                             <div class="bg-gray-100 rounded-2xl h-64 flex items-center justify-center text-gray-400 italic">Logo/Foto KOHATI</div>
                         </section>
-                        <section class="bg-white p-10 rounded-3xl shadow-sm border border-gray-100 grid md:grid-cols-2 gap-12">
-                            <div>
-                                <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-kohati-green"><i data-lucide="target"></i> Visi Utama</h3>
-                                <p class="text-gray-600 italic">"Terbinanya Muslimah Berkualitas Insan Cita."</p>
-                            </div>
-                            <div>
-                                <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-kohati-green"><i data-lucide="list-checks"></i> Misi</h3>
-                                <ul class="text-gray-600 space-y-2 text-sm">
-                                    <li>1. Membina kader yang memiliki kedalaman spiritual dan intelektual.</li>
-                                    <li>2. Menegakkan nilai-nilai keadilan gender dalam perspektif Islam.</li>
-                                    <li>3. Mengoptimalkan peran pengabdian masyarakat.</li>
-                                </ul>
-                            </div>
-                        </section>
                     </div>
                 `,
-                literacy: `
-                    <div class="max-w-7xl mx-auto px-4 py-12">
-                        <div class="flex flex-col md:flex-row justify-between items-center mb-12 gap-4">
-                            <div>
-                                <h2 class="text-3xl font-serif font-bold">Ruang Literasi</h2>
-                                <p class="text-gray-500">Gagasan dan karya ilmiah HMI-Wati.</p>
-                            </div>
-                            <button onclick="${window.isLoggedIn ? "alert('Fitur segera hadir!')" : "toggleModal('loginModal')"}" class="bg-kohati-green text-white px-6 py-2 rounded-full font-bold flex items-center gap-2">
-                                <i data-lucide="plus"></i> Kirim Karya
+
+                archive: (isLoggedIn, usersList = []) => isLoggedIn ? `
+                    <div class="max-w-5xl mx-auto px-4 py-12">
+                        <div class="flex justify-between items-center mb-8">
+                            <h2 class="text-3xl font-serif font-bold">Bank Data & Kader</h2>
+                            <button onclick="AppController.toggleModal('addUserModal')" class="bg-kohati-green text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-kohati-dark transition">
+                                <i data-lucide="user-plus"></i> Tambah Kader
                             </button>
                         </div>
-                        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                            <div class="bg-white border rounded-2xl overflow-hidden hover:shadow-lg transition">
-                                <div class="h-40 bg-kohati-light flex items-center justify-center text-kohati-green/20"><i data-lucide="image" class="w-10 h-10"></i></div>
-                                <div class="p-6">
-                                    <span class="text-xs font-bold text-kohati-gold uppercase">Opini</span>
-                                    <h4 class="font-bold text-lg mt-2 mb-2 leading-tight">Kepemimpinan Perempuan di Era Digital</h4>
-                                    <p class="text-gray-500 text-sm line-clamp-2">Bagaimana kader Kohati beradaptasi dengan teknologi...</p>
+
+                        <div class="grid gap-6">
+                            <div class="bg-white p-6 rounded-2xl border shadow-sm">
+                                <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><i data-lucide="users"></i> Daftar Kader Terdaftar</h3>
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-left text-sm">
+                                        <thead>
+                                            <tr class="border-b">
+                                                <th class="py-3 font-bold text-gray-400">NAMA LENGKAP</th>
+                                                <th class="py-3 font-bold text-gray-400">CABANG</th>
+                                                <th class="py-3 font-bold text-gray-400">TANGGAL INPUT</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${usersList.length > 0 ? usersList.map(u => `
+                                                <tr class="border-b hover:bg-gray-50">
+                                                    <td class="py-4 font-semibold text-kohati-dark">${u.fullName}</td>
+                                                    <td class="py-4 text-gray-600">${u.branch}</td>
+                                                    <td class="py-4 text-gray-400">${new Date(u.createdAt).toLocaleDateString('id-ID')}</td>
+                                                </tr>
+                                            `).join('') : '<tr><td colspan="3" class="py-10 text-center text-gray-400">Belum ada data kader.</td></tr>'}
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                `,
-                archive: window.isLoggedIn ? `
-                    <div class="max-w-5xl mx-auto px-4 py-12">
-                        <h2 class="text-3xl font-serif font-bold mb-8">Bank Data</h2>
-                        <div class="grid gap-4">
-                            <div class="bg-white p-4 border rounded-xl flex items-center justify-between">
-                                <div class="flex items-center gap-4">
-                                    <i data-lucide="file-text" class="text-red-500"></i>
-                                    <p class="font-bold">Pedoman Dasar Kohati (PDK).pdf</p>
+
+                            <div class="bg-white p-6 rounded-2xl border shadow-sm">
+                                <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><i data-lucide="file-text"></i> Dokumen Penting</h3>
+                                <div class="bg-white p-4 border rounded-xl flex items-center justify-between">
+                                    <div class="flex items-center gap-4">
+                                        <i data-lucide="file-text" class="text-red-500"></i>
+                                        <p class="font-bold">Pedoman Dasar Kohati (PDK).pdf</p>
+                                    </div>
+                                    <i data-lucide="download" class="text-gray-400 cursor-pointer hover:text-kohati-green"></i>
                                 </div>
-                                <i data-lucide="download" class="text-gray-400 cursor-pointer hover:text-kohati-green"></i>
                             </div>
                         </div>
                     </div>
@@ -300,19 +215,184 @@ function syncNewsData() {
                         <i data-lucide="lock" class="w-16 h-16 mx-auto mb-6 text-gray-300"></i>
                         <h2 class="text-2xl font-bold">Akses Terbatas</h2>
                         <p class="text-gray-500 mt-2 mb-8">Silakan login ke Portal Kader untuk mengakses Bank Data.</p>
-                        <button onclick="toggleModal('loginModal')" class="bg-kohati-green text-white px-8 py-3 rounded-full font-bold">Login Sekarang</button>
+                        <button onclick="AppController.toggleModal('loginModal')" class="bg-kohati-green text-white px-8 py-3 rounded-full font-bold">Login Sekarang</button>
                     </div>
                 `,
-news: `<div class="py-32 text-center"><h2 class="text-3xl font-serif font-bold">Kabar Kohati</h2><p class="text-gray-400 mt-4 italic">Segera Hadir: Update berita nasional dan daerah.</p></div>`
-                                            
-            };
 
-            main.innerHTML = views[viewName] || views.home;
-            lucide.createIcons();
-            window.scrollTo(0, 0);
-        }
+                modals: () => `
+                    <!-- Login Modal -->
+                    <div id="loginModal" class="fixed inset-0 bg-black/50 hidden z-[60] flex items-center justify-center p-4">
+                        <div class="bg-white rounded-2xl max-w-md w-full overflow-hidden relative shadow-2xl">
+                            <div class="bg-kohati-green p-6 text-center text-white font-serif font-bold text-xl">Portal Kader</div>
+                            <div class="p-8">
+                                <form id="form-login">
+                                    <input type="email" id="loginId" class="w-full mb-4 px-4 py-3 border rounded-lg" placeholder="Email" required>
+                                    <input type="password" id="loginPass" class="w-full mb-6 px-4 py-3 border rounded-lg" placeholder="Password" required>
+                                    <button type="submit" class="w-full bg-kohati-green text-white py-3 rounded-lg font-bold">Masuk</button>
+                                </form>
+                                <p class="mt-4 text-center text-sm text-gray-500">Belum punya akun? <button onclick="AppController.switchModal('loginModal', 'registerModal')" class="text-kohati-green font-bold">Daftar</button></p>
+                            </div>
+                            <button onclick="AppController.toggleModal('loginModal')" class="absolute top-4 right-4 text-white"><i data-lucide="x"></i></button>
+                        </div>
+                    </div>
 
-        window.onload = () => { router('home'); updateAuthUI(); };
+                    <!-- Register Modal -->
+                    <div id="registerModal" class="fixed inset-0 bg-black/50 hidden z-[60] flex items-center justify-center p-4">
+                        <div class="bg-white rounded-2xl max-w-md w-full overflow-hidden relative shadow-2xl">
+                            <div class="bg-kohati-gold p-6 text-center text-kohati-dark font-serif font-bold text-xl">Registrasi Kader</div>
+                            <div class="p-8">
+                                <form id="form-register">
+                                    <input type="text" id="regName" class="w-full mb-4 px-4 py-3 border rounded-lg" placeholder="Nama Lengkap" required>
+                                    <input type="email" id="regEmail" class="w-full mb-4 px-4 py-3 border rounded-lg" placeholder="Email" required>
+                                    <input type="text" id="regBranch" class="w-full mb-4 px-4 py-3 border rounded-lg" placeholder="Asal Cabang" required>
+                                    <input type="password" id="regPass" class="w-full mb-6 px-4 py-3 border rounded-lg" placeholder="Password (Min. 6)" required minlength="6">
+                                    <button type="submit" class="w-full bg-kohati-dark text-white py-3 rounded-lg font-bold">Daftar Akun</button>
+                                </form>
+                            </div>
+                            <button onclick="AppController.toggleModal('registerModal')" class="absolute top-4 right-4 text-kohati-dark"><i data-lucide="x"></i></button>
+                        </div>
+                    </div>
+
+                    <!-- Add User Modal (Bank Data) -->
+                    <div id="addUserModal" class="fixed inset-0 bg-black/50 hidden z-[60] flex items-center justify-center p-4">
+                        <div class="bg-white rounded-2xl max-w-md w-full overflow-hidden relative shadow-2xl">
+                            <div class="bg-gray-100 p-6 text-center text-kohati-dark font-bold text-xl">Input Data Kader Baru</div>
+                            <div class="p-8">
+                                <form id="form-add-user">
+                                    <div class="space-y-4">
+                                        <div>
+                                            <label class="block text-xs font-bold text-gray-400 uppercase mb-1">Nama Lengkap</label>
+                                            <input type="text" id="addUserName" class="w-full px-4 py-3 border rounded-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-kohati-green outline-none" placeholder="Contoh: Yunda Fatimah" required>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-bold text-gray-400 uppercase mb-1">Asal Cabang</label>
+                                            <input type="text" id="addUserBranch" class="w-full px-4 py-3 border rounded-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-kohati-green outline-none" placeholder="Contoh: Cabang Ciputat" required>
+                                        </div>
+                                        <button type="submit" class="w-full bg-kohati-green text-white py-4 rounded-xl font-bold shadow-lg hover:bg-kohati-dark transition mt-4">Simpan Ke Bank Data</button>
+                                    </div>
+                                </form>
+                            </div>
+                            <button onclick="AppController.toggleModal('addUserModal')" class="absolute top-4 right-4 text-gray-400"><i data-lucide="x"></i></button>
+                        </div>
+                    </div>
+                `
+            }
+        };
+
+        // --- 3. CONTROLLER ---
+        const AppController = {
+            async init() {
+                AppModel.initFirebase();
+                this.setupAuthListener();
+                this.setupFormListeners();
+                this.renderModals();
+                this.navigate('home');
+            },
+
+            setupAuthListener() {
+                onAuthStateChanged(AppModel.auth, (user) => {
+                    AppModel.state.user = user;
+                    AppModel.state.isLoggedIn = !!user;
+                    this.updateAuthUI();
+
+                    if (user) {
+                        // Jika login, mulai sinkronisasi data kader
+                        this.unsubscribeUsers = AppModel.syncUsers((newList) => {
+                            if (AppModel.state.currentViewName === 'archive') {
+                                this.navigate('archive');
+                            }
+                        });
+                    } else if (this.unsubscribeUsers) {
+                        this.unsubscribeUsers();
+                    }
+
+                    this.navigate(AppModel.state.currentViewName);
+                });
+            },
+
+            setupFormListeners() {
+                document.addEventListener('submit', async (e) => {
+                    const id = e.target.id;
+                    
+                    if (id === 'form-login') {
+                        e.preventDefault();
+                        try {
+                            await signInWithEmailAndPassword(AppModel.auth, document.getElementById('loginId').value, document.getElementById('loginPass').value);
+                            this.toggleModal('loginModal');
+                        } catch (err) { alert("Gagal masuk: " + err.message); }
+                    }
+
+                    if (id === 'form-register') {
+                        e.preventDefault();
+                        const email = document.getElementById('regEmail').value;
+                        const pass = document.getElementById('regPass').value;
+                        try {
+                            const cred = await createUserWithEmailAndPassword(AppModel.auth, email, pass);
+                            await setDoc(doc(AppModel.db, "users", cred.user.uid), {
+                                fullName: document.getElementById('regName').value,
+                                email: email,
+                                branch: document.getElementById('regBranch').value,
+                                role: 'kader',
+                                createdAt: new Date().toISOString()
+                            });
+                            alert("Berhasil Daftar!");
+                            this.toggleModal('registerModal');
+                        } catch (err) { alert("Gagal: " + err.message); }
+                    }
+
+                    // Fitur Baru: Handler Tambah Kader Manual
+                    if (id === 'form-add-user') {
+                        e.preventDefault();
+                        try {
+                            await addDoc(collection(AppModel.db, "users"), {
+                                fullName: document.getElementById('addUserName').value,
+                                branch: document.getElementById('addUserBranch').value,
+                                role: 'kader',
+                                createdAt: new Date().toISOString()
+                            });
+                            alert("Data Kader Berhasil Ditambahkan!");
+                            e.target.reset();
+                            this.toggleModal('addUserModal');
+                        } catch (err) { alert("Gagal Menambah: " + err.message); }
+                    }
+                });
+            },
+
+            renderModals() {
+                AppView.render('modal-container', AppView.templates.modals());
+            },
+
+            updateAuthUI() {
+                AppView.render('authButtonDesktop', AppView.templates.authUI(AppModel.state.isLoggedIn));
+            },
+
+            navigate(viewName) {
+                AppModel.state.currentViewName = viewName;
+                const { isLoggedIn, usersList } = AppModel.state;
+                let html = '';
+
+                switch(viewName) {
+                    case 'home': html = AppView.templates.home(); break;
+                    case 'about': html = AppView.templates.about(); break;
+                    case 'literacy': html = AppView.templates.literacy(isLoggedIn); break;
+                    case 'archive': html = AppView.templates.archive(isLoggedIn, usersList); break;
+                    case 'news': html = AppView.templates.news(); break;
+                    default: html = AppView.templates.home();
+                }
+
+                AppView.render('mainContent', html);
+                window.scrollTo(0, 0);
+            },
+
+            handleLogout() { signOut(AppModel.auth); },
+            toggleModal(id) { document.getElementById(id).classList.toggle('hidden'); },
+            switchModal(hideId, showId) { this.toggleModal(hideId); this.toggleModal(showId); }
+        };
+
+        window.AppController = AppController;
+        window.onload = () => AppController.init();
+        document.getElementById('nav-logo').onclick = () => AppController.navigate('home');
+
     </script>
 </body>
 </html>
